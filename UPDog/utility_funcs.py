@@ -5,7 +5,7 @@ from pyvariantfilter.variant import Variant
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-
+import scipy
 sns.set()
 
 def calculate_upd_metrics_per_chromosome(vcf, chromosome_to_analyze, family, block_size, min_dp ,min_gq, min_qual, proband_id):
@@ -261,3 +261,54 @@ def is_significant(df, expected, key):
 	
 	
 	return scipy.stats.binom_test(mendel_errors, variant_count, expected, alternative='greater')
+
+
+def merge_contiguous_blocks(df, block_size, analysis):
+
+	if df.shape[0] == 0:
+
+		return []
+
+	contiguous_blocks = []
+
+	last_chr = 'NA'
+	last_start = None
+	last_end = None
+
+	current_block_start = None
+	current_block_chr = None
+
+	current_p_values = []
+
+	for row in df.itertuples():
+		
+		current_chr = row.chrom
+		current_end = row.end
+		current_start = current_end - block_size
+
+		if current_chr != last_chr:
+			
+			if last_chr != 'NA':
+				
+				contiguous_blocks.append([last_chr, current_block_start, last_end, np.mean(current_p_values)])
+				
+				current_p_values = []
+				
+			current_block_start = current_start
+			last_chr = current_chr
+			
+		elif current_start != (last_start+block_size):
+			
+			contiguous_blocks.append([current_chr, current_block_start, last_end, np.mean(current_p_values)])
+			current_block_start = current_start
+			current_p_values  =[]
+			
+		
+		last_chr = current_chr
+		last_start = current_start
+		last_end = current_end
+		current_p_values.append(row.__getattribute__(analysis))
+			
+	contiguous_blocks.append([last_chr, current_block_start, last_end, np.mean(current_p_values)])
+
+	return contiguous_blocks

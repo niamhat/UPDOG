@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 import argparse
+import csv
 import pandas as pd
 from pyvariantfilter.family import Family
 from pyvariantfilter.family_member import FamilyMember
 from pyvariantfilter.variant_set import VariantSet
-from UPDog.utility_funcs import calculate_upd_metrics_per_chromosome, create_ax_for_plotting, replace_with_na
+from UPDog.utility_funcs import calculate_upd_metrics_per_chromosome, create_ax_for_plotting, replace_with_na,is_significant, merge_contiguous_blocks
 
 
 parser = argparse.ArgumentParser(description='Find UPD events in NGS Trio Data')
@@ -150,19 +151,60 @@ for chromosome in chromosomes_to_analyze:
 
 	create_ax_for_plotting(chromosome, prop_df, block_size, plot_location)
 
-# create CSV file with calls in 
 
 # get mean so we know what expected ratio is i.e. that caused by errors - hmm what if every chromosome is UPD?
-mean_matches_maternal_uniparental_ambiguous_count = master_df['matches_maternal_uniparental_ambiguous_count'].sum() / master_df['variant_count'].sum()
-mean_matches_paternal_uniparental_ambiguous_count = master_df['matches_paternal_uniparental_ambiguous_count'].sum() / master_df['variant_count'].sum()
 mean_matches_maternal_uniparental_isodisomy_count = master_df['matches_maternal_uniparental_isodisomy_count'].sum() / master_df['variant_count'].sum()
+mean_matches_maternal_uniparental_ambiguous_count = master_df['matches_maternal_uniparental_ambiguous_count'].sum() / master_df['variant_count'].sum()
+
+mean_matches_paternal_uniparental_ambiguous_count = master_df['matches_paternal_uniparental_ambiguous_count'].sum() / master_df['variant_count'].sum()
 mean_matches_paternal_uniparental_isodisomy_count = master_df['matches_paternal_uniparental_isodisomy_count'].sum() / master_df['variant_count'].sum()
+
+
 
 master_df['sig_prop_matches_maternal_uniparental_ambiguous_count'] = master_df.apply(is_significant, axis=1, args=(mean_matches_maternal_uniparental_ambiguous_count, 'matches_maternal_uniparental_ambiguous_count', ))
 master_df['sig_prop_matches_maternal_uniparental_isodisomy_count'] = master_df.apply(is_significant, axis=1, args=(mean_matches_maternal_uniparental_isodisomy_count, 'matches_maternal_uniparental_isodisomy_count', ))
 master_df['sig_prop_matches_paternal_uniparental_ambiguous_count'] = master_df.apply(is_significant, axis=1, args=(mean_matches_paternal_uniparental_ambiguous_count, 'matches_paternal_uniparental_ambiguous_count', ))
 master_df['sig_prop_matches_paternal_uniparental_isodisomy_count'] = master_df.apply(is_significant, axis=1, args=(mean_matches_paternal_uniparental_isodisomy_count, 'matches_paternal_uniparental_isodisomy_count', ))
 
+# save raw data to file
+print ('Saving Raw UPD Metrics file to disk.')
+master_df.to_csv(f'{output}_raw_data.csv', sep='\t', index=False)
 
+
+print ('Calculating statistically significiant UPD events.')
 # adjust supplied p value by the number of tests we are going to do - one for each type of mendellian error and block
 p_value =  p_value / master_df.shape[0] / 4 
+
+# now restrict to statistically significiant parts of chromosomses and merge contiguous blocks together
+mat_amb = master_df[(master_df['sig_prop_matches_maternal_uniparental_ambiguous_count'] < p_value)]
+mat_iso = master_df[(master_df['sig_prop_matches_maternal_uniparental_isodisomy_count'] < p_value)]
+pat_amb = master_df[(master_df['sig_prop_matches_paternal_uniparental_ambiguous_count'] < p_value)]
+pat_iso = master_df[(master_df['sig_prop_matches_paternal_uniparental_isodisomy_count'] < p_value)]
+
+
+mat_amb_blocks = merge_contiguous_blocks(mat_amb, block_size, 'sig_prop_matches_maternal_uniparental_ambiguous_count')
+mat_iso_blocks = merge_contiguous_blocks(mat_iso, block_size, 'sig_prop_matches_maternal_uniparental_isodisomy_count')
+pat_amb_blocks = merge_contiguous_blocks(pat_amb, block_size, 'sig_prop_matches_paternal_uniparental_ambiguous_count')
+pat_iso_blocks = merge_contiguous_blocks(pat_iso, block_size, 'sig_prop_matches_paternal_uniparental_isodisomy_count')
+
+# save calls to file
+
+with open(f'{output}_UPD_calls.csv', 'w') as csvfile:
+    spamwriter = csv.writer(csvfile, delimiter='\t')
+    spamwriter.writerow(['chrom', 'start', 'end', 'mean_p_value', 'upd_event'])
+    
+    for row in mat_amb_blocks:
+
+    	spamwriter.writerow(row + ['maternal_uniparental_ambiguous'])
+
+    for row in mat_iso_blocks:
+
+    	spamwriter.writerow(row + ['maternal_uniparental_isodisomy'])
+
+    for row in pat_amb_blocks:
+
+    	spamwriter.writerow(row + ['paternal_uniparental_ambiguous'])
+
+    for row in pat_iso_blocks:
+
+    	spamwriter.writerow(row + ['paternal_uniparental_isodisomy'])
