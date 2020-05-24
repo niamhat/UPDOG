@@ -6,7 +6,7 @@ import pandas as pd
 from pyvariantfilter.family import Family
 from pyvariantfilter.family_member import FamilyMember
 from pyvariantfilter.variant_set import VariantSet
-from UPDog.utility_funcs import calculate_upd_metrics_per_chromosome, create_ax_for_plotting, replace_with_na,is_significant, merge_contiguous_blocks
+from UPDog.utility_funcs import calculate_upd_metrics_per_chromosome, create_ax_for_plotting, replace_with_na,is_significant, merge_contiguous_blocks, apply_filters
 
 
 parser = argparse.ArgumentParser(description='Find UPD events in NGS Trio Data')
@@ -22,8 +22,10 @@ parser.add_argument('--block_size', type=int, nargs=1, required=True, help='The 
 parser.add_argument('--min_gq', type=int, nargs=1, required=True, help='The minimum genotype quality (GQ).')
 parser.add_argument('--min_qual', type=int, nargs=1, required=True, help='The minimum QUAL value.')
 parser.add_argument('--min_variants_per_block', type=int, nargs=1, required=True, help='The minimum number of variants in a block.')
-parser.add_argument('--p_value', type=float, nargs=1, required=True, help='The maximum P value for statistical test for block significance')
-parser.add_argument('--chromosome', type=str, nargs=1, required=False, help='Restrict to single chromosome.')
+parser.add_argument('--p_value', type=float, nargs=1, required=True, help='The maximum P value for statistical test for block significance.')
+parser.add_argument('--chromosome', type=str, nargs=1, required=False, help='Restrict to single chromosome. WARNING: For testing purposes only.')
+parser.add_argument('--min_blocks', type=int, nargs=1, required=True, help='The minimum number of contiguous blocks for a call not to be filtered.')
+parser.add_argument('--min_proportion', type=float, nargs=1, required=True, help='If the proportion of UPD variants in a contiguous block is below this then apply a filter.')
 
 args = parser.parse_args()
 
@@ -37,6 +39,9 @@ min_qual = args.min_qual[0]
 p_value = args.p_value[0]
 block_size = args.block_size[0]
 min_variants_per_block = args.min_variants_per_block[0]
+min_blocks = args.min_blocks[0]
+min_proportion = args.min_proportion[0]
+
 
 if args.chromosome != None:
 
@@ -135,13 +140,13 @@ master_df['prop_me'] = master_df.apply(replace_with_na, axis=1, args=('prop_me',
 
 # plot data and save to file
 prop_df = master_df[[
-           'prop_is_homozygous_count',
-           'prop_matches_maternal_uniparental_ambiguous_count',
-           'prop_matches_maternal_uniparental_isodisomy_count',
-           'prop_matches_paternal_uniparental_ambiguous_count',
-           'prop_matches_paternal_uniparental_isodisomy_count',
-           'end',
-          'chrom']]
+		   'prop_is_homozygous_count',
+		   'prop_matches_maternal_uniparental_ambiguous_count',
+		   'prop_matches_maternal_uniparental_isodisomy_count',
+		   'prop_matches_paternal_uniparental_ambiguous_count',
+		   'prop_matches_paternal_uniparental_isodisomy_count',
+		   'end',
+		  'chrom']]
 
 for chromosome in chromosomes_to_analyze:
 
@@ -182,29 +187,44 @@ pat_amb = master_df[(master_df['sig_prop_matches_paternal_uniparental_ambiguous_
 pat_iso = master_df[(master_df['sig_prop_matches_paternal_uniparental_isodisomy_count'] < p_value)]
 
 
-mat_amb_blocks = merge_contiguous_blocks(mat_amb, block_size, 'sig_prop_matches_maternal_uniparental_ambiguous_count')
-mat_iso_blocks = merge_contiguous_blocks(mat_iso, block_size, 'sig_prop_matches_maternal_uniparental_isodisomy_count')
-pat_amb_blocks = merge_contiguous_blocks(pat_amb, block_size, 'sig_prop_matches_paternal_uniparental_ambiguous_count')
-pat_iso_blocks = merge_contiguous_blocks(pat_iso, block_size, 'sig_prop_matches_paternal_uniparental_isodisomy_count')
+mat_amb_blocks = merge_contiguous_blocks(mat_amb, block_size, 'sig_prop_matches_maternal_uniparental_ambiguous_count','prop_matches_maternal_uniparental_ambiguous_count')
+mat_iso_blocks = merge_contiguous_blocks(mat_iso, block_size, 'sig_prop_matches_maternal_uniparental_isodisomy_count','prop_matches_maternal_uniparental_isodisomy_count')
+pat_amb_blocks = merge_contiguous_blocks(pat_amb, block_size, 'sig_prop_matches_paternal_uniparental_ambiguous_count','prop_matches_paternal_uniparental_ambiguous_count')
+pat_iso_blocks = merge_contiguous_blocks(pat_iso, block_size, 'sig_prop_matches_paternal_uniparental_isodisomy_count','prop_matches_paternal_uniparental_isodisomy_count')
 
 # save calls to file
 
-with open(f'{output}_UPD_calls.csv', 'w') as csvfile:
-    spamwriter = csv.writer(csvfile, delimiter='\t')
-    spamwriter.writerow(['chrom', 'start', 'end', 'mean_p_value', 'upd_event'])
-    
-    for row in mat_amb_blocks:
+upd_calls_list = []
 
-    	spamwriter.writerow(row + ['maternal_uniparental_ambiguous'])
+	
+for row in mat_amb_blocks:
 
-    for row in mat_iso_blocks:
+	upd_calls_list.append(row + ['maternal_uniparental_ambiguous'])
 
-    	spamwriter.writerow(row + ['maternal_uniparental_isodisomy'])
+for row in mat_iso_blocks:
 
-    for row in pat_amb_blocks:
+	upd_calls_list.append(row + ['maternal_uniparental_isodisomy'])
 
-    	spamwriter.writerow(row + ['paternal_uniparental_ambiguous'])
+for row in pat_amb_blocks:
 
-    for row in pat_iso_blocks:
+	upd_calls_list.append(row + ['paternal_uniparental_ambiguous'])
 
-    	spamwriter.writerow(row + ['paternal_uniparental_isodisomy'])
+for row in pat_iso_blocks:
+
+	upd_calls_list.append(row + ['paternal_uniparental_isodisomy'])
+
+
+# create dataframe from call list
+calls_df = pd.DataFrame(upd_calls_list, columns =['chromosome', 'start', 'end', 'mean_p_value', 'mean_proportion_me', 'upd_event_signature'])
+
+# if empty then write empty df
+if calls_df.shape[0] == 0:
+
+	calls_df = pd.DataFrame(upd_calls_list, columns =['chromosome', 'start', 'end', 'mean_p_value', 'mean_proportion_me', 'upd_event_signature', 'filter'])
+	calls_df.to_csv(f'{output}_UPD_calls.csv', sep='\t', index=False)
+
+else:
+	
+	# apply a filter  and write df
+	calls_df['filter'] = calls_df.apply(apply_filters, axis=1, args=(min_blocks, min_proportion, block_size,))
+	calls_df.sort_values('chromosome').to_csv(f'{output}_UPD_calls.csv', sep='\t', index=False)

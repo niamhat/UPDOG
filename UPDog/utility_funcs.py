@@ -263,7 +263,7 @@ def is_significant(df, expected, key):
 	return scipy.stats.binom_test(mendel_errors, variant_count, expected, alternative='greater')
 
 
-def merge_contiguous_blocks(df, block_size, analysis):
+def merge_contiguous_blocks(df, block_size, analysis, analysis2):
 
 	if df.shape[0] == 0:
 
@@ -279,6 +279,7 @@ def merge_contiguous_blocks(df, block_size, analysis):
 	current_block_chr = None
 
 	current_p_values = []
+	current_proportions = []
 
 	for row in df.itertuples():
 		
@@ -290,7 +291,7 @@ def merge_contiguous_blocks(df, block_size, analysis):
 			
 			if last_chr != 'NA':
 				
-				contiguous_blocks.append([last_chr, current_block_start, last_end, np.mean(current_p_values)])
+				contiguous_blocks.append([last_chr, current_block_start, last_end, np.mean(current_p_values), np.mean(current_proportions)])
 				
 				current_p_values = []
 				
@@ -299,7 +300,7 @@ def merge_contiguous_blocks(df, block_size, analysis):
 			
 		elif current_start != (last_start+block_size):
 			
-			contiguous_blocks.append([current_chr, current_block_start, last_end, np.mean(current_p_values)])
+			contiguous_blocks.append([current_chr, current_block_start, last_end, np.mean(current_p_values), np.mean(current_proportions)])
 			current_block_start = current_start
 			current_p_values  =[]
 			
@@ -308,7 +309,36 @@ def merge_contiguous_blocks(df, block_size, analysis):
 		last_start = current_start
 		last_end = current_end
 		current_p_values.append(row.__getattribute__(analysis))
+		current_proportions.append(row.__getattribute__(analysis2))
 			
-	contiguous_blocks.append([last_chr, current_block_start, last_end, np.mean(current_p_values)])
+	contiguous_blocks.append([last_chr, current_block_start, last_end, np.mean(current_p_values), np.mean(current_proportions)])
 
 	return contiguous_blocks
+
+def apply_filters(df, min_blocks, min_proportion, block_size):
+
+	filters = []
+
+	proportion = df['mean_proportion_me']
+	start = df['start']
+	end = df['end']
+
+	if proportion < min_proportion:
+
+		filters.append('low_proportion_me')
+
+	block_length = end - start
+
+	n_blocks = block_length / block_size
+
+	if n_blocks < min_blocks:
+
+		filters.append('min_block_length')
+
+	if len(filters) == 0:
+
+		return 'pass'
+
+	else:
+
+		return ';'.join(filters)
