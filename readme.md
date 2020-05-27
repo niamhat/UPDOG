@@ -19,19 +19,41 @@ UPDOG is a Python tool to find and plot UPD events in Next Generation Sequencing
 
 Each UPD event produces signature mendellian errors in trio genotypes [2]
 
-Paternal 
+Coming Soon
 
 #### Statistics
 
-## Install
+Coming Soon
 
+## Install
+```
+pip install pyupdog
+```
 ## Run
 
+```
+
+UPDog.py --vcf test_data/200518_A00748_0027_AHLKFCDRXX.vcf.gz \
+--proband_id test_sample \
+--ped test_data/200518_A00748_0027_AHLKFCDRXX.ped \
+--output results/200518_A00748_0027_AHLKFCDRXX \
+--min_dp 25 \
+--min_gq 15 \
+--min_qual 20 \
+--p_value 0.001 \
+--block_size 1000000 \
+--min_variants_per_block 100 \
+--min_blocks 2 \
+--min_proportion 0.01
+
+
+```
 ## Analyse Output
+
+Coming Soon
 
 ## References
 
 [1] https://en.wikipedia.org/wiki/Uniparental_disomy
 [2] UPDio https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3975066/
-[3] UPDtool
 

@@ -6,7 +6,7 @@ import pandas as pd
 from pyvariantfilter.family import Family
 from pyvariantfilter.family_member import FamilyMember
 from pyvariantfilter.variant_set import VariantSet
-from UPDog.utility_funcs import calculate_upd_metrics_per_chromosome, create_ax_for_plotting, replace_with_na,is_significant, merge_contiguous_blocks, apply_filters
+from upd.utility_funcs import calculate_upd_metrics_per_chromosome, create_ax_for_plotting, replace_with_na,is_significant, merge_contiguous_blocks, apply_filters
 
 
 parser = argparse.ArgumentParser(description='Find UPD events in NGS Trio Data')
