@@ -67,8 +67,12 @@ sex = filtered_ped['sex'].iloc[0]
 # get family id
 family_id = filtered_ped['family_id'].iloc[0]
 
+
+print(dad, mum)
+
+
 # exit if we don't have mum and dad
-if dad == '0' or mum == '0':
+if dad == '0' or mum == '0' or dad == 0 or mum == 0:
 	print ('Cannot run program on this sample as we no not have the mother and father in the PED file.')
 	exit()
 
