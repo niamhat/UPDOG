@@ -74,6 +74,11 @@ def calculate_upd_metrics_per_chromosome(vcf, chromosome_to_analyze, family, blo
 
 					gts.append(ref_and_alt[allele])
 
+			if len(gts) == 1 and (chrom == 'X' or chrom == 'Y'):
+
+				gts.append(gts[0])
+
+
 			if gts[0] == '.' and gts[1] == '.':
 
 					ads.append(0)
@@ -109,8 +114,12 @@ def calculate_upd_metrics_per_chromosome(vcf, chromosome_to_analyze, family, blo
 			if dp == None:
 
 				dp  = 0
-
-			new_variant.add_genotype(family_member_id, gts, ads, gq, dp)
+			try:
+				new_variant.add_genotype(family_member_id, gts, ads, gq, dp)
+			except:
+				print(chrom, pos, ref, alt, gts)
+				raise
+				
 
 
 		# now we have created variant object let us count the number for each block
