@@ -17,8 +17,8 @@ setuptools.setup(
         'Operating System :: OS Independent',
     ],
     install_requires=[
-   'pysam>=0.15.2',
-   'pandas>=0.23.4',
+   'pysam>=0.16',
+   'pandas>=1.3.2',
    'seaborn>=0.10.1',
    'scipy>=1.4.1',
    'pyvariantfilter>=1.0.4',
