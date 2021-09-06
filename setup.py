@@ -1,15 +1,13 @@
 import setuptools
 
-with open('readme.md', 'r') as fh:
-    long_description = fh.read()
 
 setuptools.setup(
     name='pyupdog',
-    version='1.0.3',
+    version='1.0.6',
     author='Joseph Halstead',
     author_email='josephhalstead89@gmail.com',
     description='Python program for calculating UPD',
-    long_description=long_description,
+    long_description='test',
     long_description_content_type='text/markdown',
     url='https://github.com/josephhalstead/pyvariantfilter',
     packages=setuptools.find_packages(),

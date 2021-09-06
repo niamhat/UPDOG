@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import io
+
 from pysam import VariantFile
 from pyvariantfilter.variant import Variant
 import numpy as np
@@ -52,7 +54,7 @@ def calculate_upd_metrics_per_chromosome(vcf, chromosome_to_analyze, family, blo
 
 			continue
 
-		new_variant = Variant(chrom=chrom, pos=pos, ref=ref, alt=alt, filter_status=filter_status, quality=quality)
+		new_variant = Variant(chrom=chrom.strip('chr'), pos=pos, ref=ref, alt=alt, filter_status=filter_status, quality=quality)
 		new_variant.add_family(family)
 
 		for family_member_id in family_member_ids:
@@ -74,10 +76,9 @@ def calculate_upd_metrics_per_chromosome(vcf, chromosome_to_analyze, family, blo
 
 					gts.append(ref_and_alt[allele])
 
-			if len(gts) == 1 and (chrom == 'X' or chrom == 'Y'):
+			if len(gts) == 1 and (chrom == 'X' or chrom == 'Y' or chrom == 'chrX' or chrom == 'chrY'):
 
 				gts.append(gts[0])
-
 
 			if gts[0] == '.' and gts[1] == '.':
 
@@ -351,3 +352,27 @@ def apply_filters(df, min_blocks, min_proportion, block_size):
 	else:
 
 		return ';'.join(filters)
+
+def get_genome_build(vcf):
+	"""
+	Get the genome build from the header
+	"""
+	bcf_in = VariantFile(vcf)
+
+	header = bcf_in.header
+
+	header =  str(header)
+
+	for line in io.StringIO(header).readlines():
+
+		if '##reference' in line:
+
+			if 'hs37d5' in line or 'human_g1k_v37' in line or 'GRCh37' in line or 'hg19' in line:
+
+				return 37
+
+			elif 'Homo_sapiens_assembly38' in line or 'GRCh38' or 'hg38' in line:
+
+				return 38
+
+	raise Exception('Invalid reference genome in VCF header')
