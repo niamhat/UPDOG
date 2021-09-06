@@ -6,7 +6,7 @@ import pandas as pd
 from pyvariantfilter.family import Family
 from pyvariantfilter.family_member import FamilyMember
 from pyvariantfilter.variant_set import VariantSet
-from upd.utility_funcs import calculate_upd_metrics_per_chromosome, create_ax_for_plotting, replace_with_na,is_significant, merge_contiguous_blocks, apply_filters
+from upd.utility_funcs import calculate_upd_metrics_per_chromosome, create_ax_for_plotting, replace_with_na,is_significant, merge_contiguous_blocks, apply_filters, get_genome_build
 
 
 parser = argparse.ArgumentParser(description='Find UPD events in NGS Trio Data')
@@ -53,6 +53,10 @@ else:
 	just_one_chromosome = False
 
 
+# check which genome build we have
+
+genome_build = get_genome_build(vcf)
+
 # read ped into df
 ped_df = pd.read_csv(ped, sep='\t', names=['family_id', 'sample_id', 'paternal_id', 'maternal_id', 'sex', 'affected'])
 
@@ -66,9 +70,6 @@ sex = filtered_ped['sex'].iloc[0]
 
 # get family id
 family_id = filtered_ped['family_id'].iloc[0]
-
-
-print(dad, mum)
 
 
 # exit if we don't have mum and dad
@@ -94,17 +95,27 @@ if just_one_chromosome == True:
 
 else:
 
+	chromosomes_to_analyze = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', 'X']
+
 	if sex == 2:
 
 		print ('Proband is Female - will analyse chromosomes 1-22 and X')
-		chromosomes_to_analyze = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', 'X']
 
 	else:
 
 		print ('Proband is Male - will analyse chromosomes 1-22 only.')
-		chromosomes_to_analyze = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22']
+		chromosomes_to_analyze.pop()
 
+	if genome_build == 38:
+		print('Genome build is 38')
+		chromosomes_to_analyze = ['chr' + c for c in chromosomes_to_analyze]
 
+	else:
+
+		print ('Genome build is 37')
+
+print ('Analysing chromosomses', chromosomes_to_analyze)
+		
 # now calculate UPD metrics using calculate_upd_metrics_per_chromosome()
 master_df = pd.DataFrame()
 for chromosome in chromosomes_to_analyze:
@@ -156,7 +167,13 @@ for chromosome in chromosomes_to_analyze:
 
 	print (f'Plotting Metrics for chromosome: {chromosome}')
 
-	plot_location = f'{output}_chr{chromosome}_UPD.png'
+	if 'chr' in chromosome:
+
+		plot_location = f'{output}_{chromosome}_UPD.png'
+
+	else:
+
+		plot_location = f'{output}_chr{chromosome}_UPD.png'
 
 	create_ax_for_plotting(chromosome, prop_df, block_size, plot_location)
 
