@@ -34,7 +34,7 @@ pip install pyupdog
 ```
 
 UPDog.py --vcf test_data/200518_A00748_0027_AHLKFCDRXX.vcf.gz \
---proband_id test_sample \
+--proband_id test_sample \  # Add proband samply ID here
 --ped test_data/200518_A00748_0027_AHLKFCDRXX.ped \
 --output results/200518_A00748_0027_AHLKFCDRXX \
 --min_dp 25 \
